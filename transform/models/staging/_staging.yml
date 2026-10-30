@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: stg_petitions
+    columns:
+      - name: petition_id
+        tests: [unique, not_null]
+      - name: title
+        tests: [not_null]
+      - name: signatures
+        tests: [not_null]

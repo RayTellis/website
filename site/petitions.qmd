@@ -1,0 +1,79 @@
+---
+title: "UK Parliament petitions"
+subtitle: "Open petitions and how close each is to a threshold"
+---
+
+At **10,000** signatures the government must respond. At **100,000** the petition is
+considered for a debate in Parliament.
+
+```{python}
+import duckdb
+import plotly.express as px
+from IPython.display import Markdown, HTML
+
+con = duckdb.connect("../data/warehouse.duckdb", read_only=True)
+df = con.sql("select * from main.fct_petitions").df()
+con.close()
+
+df["short_title"] = df["title"].str.slice(0, 70).where(df["title"].str.len() <= 70,
+                                                       df["title"].str.slice(0, 67) + "…")
+BLUE = "#2a78d6"
+```
+
+```{python}
+#| output: asis
+total = len(df)
+over_10k = (df["signatures"] >= 10_000).sum()
+over_100k = (df["signatures"] >= 100_000).sum()
+print(f"**{total:,}** open petitions loaded · **{over_10k:,}** past 10,000 · **{over_100k:,}** past 100,000")
+```
+
+## Closest to their next threshold
+
+```{python}
+near = (df[df["next_threshold"].notna()]
+        .assign(progress=lambda d: d["signatures"] / d["next_threshold"] * 100)
+        .sort_values("progress", ascending=False)
+        .head(10)
+        .sort_values("progress"))
+
+fig = px.bar(
+    near, x="progress", y="short_title", orientation="h",
+    custom_data=["signatures", "signatures_to_go", "next_threshold"],
+    labels={"progress": "% of the way to next threshold", "short_title": ""},
+)
+fig.update_traces(
+    marker_color=BLUE,
+    hovertemplate="<b>%{y}</b><br>%{customdata[0]:,} signatures<br>"
+                  "%{customdata[1]:,} to go to %{customdata[2]:,}<extra></extra>",
+)
+fig.update_layout(xaxis_range=[0, 100], height=460, margin=dict(l=10, r=10, t=10, b=10),
+                  plot_bgcolor="rgba(0,0,0,0)")
+fig.show()
+```
+
+## How many petitions reach each stage
+
+```{python}
+bands = df.groupby("signature_band").size().reset_index(name="petitions")
+bands["signature_band"] = bands["signature_band"].str.slice(3)   # drop the "1. " sort prefix
+
+fig = px.bar(bands, x="signature_band", y="petitions",
+             labels={"signature_band": "", "petitions": "Open petitions"})
+fig.update_traces(marker_color=BLUE, hovertemplate="%{x}: %{y:,} petitions<extra></extra>")
+fig.update_layout(height=340, margin=dict(l=10, r=10, t=10, b=10), plot_bgcolor="rgba(0,0,0,0)")
+fig.show()
+```
+
+## Top 15 by signatures
+
+```{python}
+top = df.sort_values("signatures", ascending=False).head(15).copy()
+top["Petition"] = '<a href="' + top["url"] + '" target="_blank">' + top["short_title"] + "</a>"
+top["Signatures"] = top["signatures"].map("{:,}".format)
+top["Response?"] = top["has_response"].map({True: "Yes", False: ""})
+HTML(top[["Petition", "Signatures", "Response?"]].to_html(index=False, escape=False,
+                                                          classes="table table-sm"))
+```
+
+*Data: [UK Parliament petitions](https://petition.parliament.uk/), Open Government Licence v3.0.*

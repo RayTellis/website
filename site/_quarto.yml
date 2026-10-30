@@ -1,0 +1,21 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "UK Data Portfolio"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: petitions.qmd
+        text: Petitions
+
+format:
+  html:
+    theme: cosmo
+    toc: false
+
+execute:
+  echo: false      # hide the code, show only the results
+  warning: false
