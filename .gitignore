@@ -1,0 +1,10 @@
+.venv/
+data/
+*.duckdb
+logs/
+site/_site/
+site/.quarto/
+transform/target/
+transform/logs/
+transform/dbt_packages/
+transform/.user.yml
